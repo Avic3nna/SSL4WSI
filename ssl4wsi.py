@@ -47,9 +47,10 @@ if __name__ == "__main__":
     set_determinism(seed=1337)
     train_data, val_data = load_tile_sets(tile_path=args.data_dir)
     # Define DataLoader using MONAI, CacheDataset needs to be used
-    dist.init_process_group("gloo", rank=4, world_size=1)
+    dist.init_process_group("gloo", world_size=1)
     train_ds = CacheDataset(data=train_data, transform=ssl_transforms, cache_rate=1., num_workers=8)
-    train_sampler = DistributedSampler(train_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True)
+    # sampler option is mutually exclusive with shuffle
+    train_sampler = DistributedSampler(train_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=False)
     train_loader = DataLoader(train_ds, sampler=train_sampler, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True, collate_fn=collate_fn)
 
     val_ds = CacheDataset(data=val_data, transform=ssl_transforms, cache_rate=1., num_workers=8)
