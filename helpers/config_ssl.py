@@ -26,19 +26,19 @@ class SSLModel():
         super().__init__()
         # Training Config
         # Define Network ViT backbone & Loss & Optimizer
-        model = ViTAutoEnc(
+        self.model = ViTAutoEnc(
                 in_channels=3,
-                img_size=(224, 224),
-                patch_size=(16, 16),
+                img_size=(224, 224, 3),
+                patch_size=(16, 16, 3),
                 pos_embed="conv",
                 hidden_size=768,
                 mlp_dim=3072,
         )
 
-        model = model.cuda()
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], 
+        self.model = self.model.cuda()
+        self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[local_rank], 
                                                           broadcast_buffers=False, find_unused_parameters=True)
-        model_without_ddp = model.module
+        model_without_ddp = self.model.module
 
         # Define Hyper-paramters for training loop
         self.max_epochs = max_epochs
@@ -47,7 +47,7 @@ class SSLModel():
         self.lr = lr
         self.recon_loss = recon_loss
         self.contrastive_loss = monai.losses.ContrastiveLoss(temperature=0.05)
-        self.optimizer = partial(optimizer, model.parameters(), lr=lr, **kwargs)
+        self.optimizer = partial(optimizer, self.model.parameters(), lr=lr, **kwargs)
         
         self.epoch_loss_values = []
         self.step_loss_values = []
