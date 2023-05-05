@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 
 
 def load_tile_sets(tile_path: Path = None):
-    tile_dirs = tile_path.glob('*.jpg')
+    tile_dirs = list(file for file in tile_path.glob('*.jpg'))
     train_set, valid_set = train_test_split(tile_dirs, test_size=0.2, random_state=1337)
     data_dict = {"training": [], "validation": []}
     
