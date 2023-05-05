@@ -15,7 +15,7 @@ from monai.transforms import (
 
 def ssl_transforms():
     #for 3D images, add extra dimension for pixdim, spatial_size and roi_size
-    Compose(
+    return Compose(
     [
         LoadImaged(keys=["image"], image_only=True),
         EnsureChannelFirstd(keys=["image"]),
@@ -29,8 +29,8 @@ def ssl_transforms():
             clip=True,
         ),
         CropForegroundd(keys=["image"], source_key="image"),
-        SpatialPadd(keys=["image"], spatial_size=(224, 224)),
-        RandSpatialCropSamplesd(keys=["image"], roi_size=(224, 224), random_size=False, num_samples=2),
+        SpatialPadd(keys=["image"], spatial_size=(512, 512)),
+        RandSpatialCropSamplesd(keys=["image"], roi_size=(512, 512), random_size=False, num_samples=2),
         CopyItemsd(keys=["image"], times=2, names=["gt_image", "image_2"], allow_missing_keys=False),
         OneOf(
             transforms=[

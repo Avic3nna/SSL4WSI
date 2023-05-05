@@ -28,7 +28,7 @@ class SSLModel():
         # Define Network ViT backbone & Loss & Optimizer
         self.model = ViTAutoEnc(
                 in_channels=3,
-                img_size=(224, 224, 3),
+                img_size=(512, 512, 3),
                 patch_size=(16, 16, 3),
                 pos_embed="conv",
                 hidden_size=768,
