@@ -17,7 +17,7 @@ def ssl_transforms():
     #for 3D images, add extra dimension for pixdim, spatial_size and roi_size
     Compose(
     [
-        LoadImaged(keys=["image"]),
+        LoadImaged(keys=["image"], image_only=True),
         EnsureChannelFirstd(keys=["image"]),
         Spacingd(keys=["image"], pixdim=(2.0, 2.0), mode=("bilinear")),
         ScaleIntensityRanged(
