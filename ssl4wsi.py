@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 
 from helpers.training_transforms import ssl_transforms
 from helpers.config_ssl import SSLModel
-from helpers.load_data import process_slide_jpg, load_tile_sets
+from helpers.load_data import load_tile_sets
 from helpers.utils import collate_fn
 
 
@@ -54,7 +54,6 @@ if __name__ == "__main__":
     val_ds = CacheDataset(data=val_data, transform=ssl_transforms, cache_rate=1., num_workers=8)
     val_sampler = DistributedSampler(val_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=False)
     val_loader = DataLoader(val_ds, sampler=val_sampler, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True, collate_fn=collate_fn)
-
     model = SSLModel()
     model.train(train_loader=train_loader, val_loader=val_loader, output_path=args.log_dir)
     model.plot(output_path=args.log_dir)
