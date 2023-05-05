@@ -8,41 +8,29 @@ __email__ = "omar.el_nahhas@tu-dresden.de"
 import os
 import json
 import time
-import torch
 import matplotlib.pyplot as plt
-
-from torch.nn import L1Loss
-from monai.utils import set_determinism, first
-from monai.networks.nets import ViTAutoEnc
-from monai.losses import ContrastiveLoss
-from monai.data import DataLoader, Dataset
-from monai.config import print_config
-from monai.transforms import (
-    LoadImaged,
-    Compose,
-    CropForegroundd,
-    CopyItemsd,
-    SpatialPadd,
-    EnsureChannelFirstd,
-    Spacingd,
-    OneOf,
-    ScaleIntensityRanged,
-    RandSpatialCropSamplesd,
-    RandCoarseDropoutd,
-    RandCoarseShuffled,
-)
-
 import argparse
 from pathlib import Path
 import PIL
+
+from monai.utils import set_determinism
+from monai.data import CacheDataset
+
+import torch
+import torch.distributed as dist
+from torch.utils.data import DataLoader, DistributedSampler
+
 from helpers.training_transforms import ssl_transforms
 from helpers.config_ssl import SSLModel
+from helpers.load_data import process_slide_jpg, load_tile_sets
+from helpers.utils import collate_fn
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Normalise WSI directly.')
+        description='SSL for WSI using ViT.')
 
-    parser.add_argument('-d', '--data', type=Path, required=True,
+    parser.add_argument('-d', '--data_dir', type=Path, required=True,
                         help='Path to load data from.')
     parser.add_argument('-l', '--log_dir', type=Path, required=True,
                         help='Path of where to log the output.')
@@ -51,16 +39,21 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+
 PIL.Image.MAX_IMAGE_PIXELS = None
+
 
 if __name__ == "__main__":
     set_determinism(seed=1337)
+    train_data, val_data = load_tile_sets(tile_path=args.data_dir)
     # Define DataLoader using MONAI, CacheDataset needs to be used
-    train_ds = Dataset(data=train_data, transform=ssl_transforms)
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    train_ds = CacheDataset(data=train_data, transform=ssl_transforms, cache_rate=1., num_workers=8)
+    train_sampler = DistributedSampler(train_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True)
+    train_loader = DataLoader(train_ds, sampler=train_sampler, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True, collate_fn=collate_fn)
 
-    val_ds = Dataset(data=val_data, transform=ssl_transforms)
-    val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    val_ds = CacheDataset(data=val_data, transform=ssl_transforms, cache_rate=1., num_workers=8)
+    val_sampler = DistributedSampler(val_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=False)
+    val_loader = DataLoader(val_ds, sampler=val_sampler, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True, collate_fn=collate_fn)
 
     model = SSLModel()
     model.train(train_loader=train_loader, val_loader=val_loader, output_path=args.log_dir)

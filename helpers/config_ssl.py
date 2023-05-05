@@ -7,6 +7,10 @@ import time
 from functools import partial
 import matplotlib.pyplot as plt
 import os
+import numpy as np
+
+from timm.utils import AverageMeter
+from helpers.utils import reduce_tensor
 
 
 class SSLModel():
@@ -17,21 +21,24 @@ class SSLModel():
                  lr: float = 1e-4,
                  recon_loss = torch.nn.L1Loss(),
                  optimizer = torch.optim.Adam,
+                 local_rank: np.array = [0, 1, 2, 3],
                  **kwargs) -> None:
         super().__init__()
         # Training Config
         # Define Network ViT backbone & Loss & Optimizer
-        device = torch.device("cuda:0")
         model = ViTAutoEnc(
-                in_channels=1,
-                img_size=(96, 96, 96),
-                patch_size=(16, 16, 16),
+                in_channels=3,
+                img_size=(224, 224),
+                patch_size=(16, 16),
                 pos_embed="conv",
                 hidden_size=768,
                 mlp_dim=3072,
         )
 
-        model = model.to(device)
+        model = model.cuda()
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], 
+                                                          broadcast_buffers=False, find_unused_parameters=True)
+        model_without_ddp = model.module
 
         # Define Hyper-paramters for training loop
         self.max_epochs = max_epochs
@@ -47,7 +54,7 @@ class SSLModel():
         self.epoch_cl_loss_values = []
         self.epoch_recon_loss_values = []
         self.val_loss_values = []
-        self.best_val_loss = 1000.0
+        self.best_val_loss = 1e3
 
         return
 
@@ -62,14 +69,18 @@ class SSLModel():
             epoch_recon_loss = 0
             step = 0
 
+            loss_l1_meter = AverageMeter()
+            loss_cont_meter = AverageMeter()
+            loss_meter = AverageMeter()
+
             for batch_data in train_loader:
                 step += 1
                 start_time = time.time()
 
                 inputs, inputs_2, gt_input = (
-                    batch_data["image"].to(self.device),
-                    batch_data["image_2"].to(self.device),
-                    batch_data["gt_image"].to(self.device),
+                    batch_data["image"].cuda(non_blocking=True),
+                    batch_data["image_2"].cuda(non_blocking=True),
+                    batch_data["gt_image"].cuda(non_blocking=True),
                 )
                 self.optimizer.zero_grad()
                 outputs_v1, hidden_v1 = self.model(inputs)
@@ -86,12 +97,23 @@ class SSLModel():
 
                 total_loss.backward()
                 self.optimizer.step()
+                torch.cuda.synchronize()
+
                 epoch_loss += total_loss.item()
                 self.step_loss_values.append(total_loss.item())
 
                 # CL & Recon Loss Storage of Value
                 epoch_cl_loss += cl_loss.item()
                 epoch_recon_loss += r_loss.item()
+
+
+                r_loss_t = reduce_tensor(r_loss)
+                cl_loss_t = reduce_tensor(cl_loss)
+                total_loss_t = reduce_tensor(total_loss)
+
+                loss_l1_meter.update(r_loss_t.item(), inputs.size(0))
+                loss_cont_meter.update(cl_loss_t.item(), inputs.size(0))
+                loss_meter.update(total_loss_t.item(), inputs.size(0))
 
                 end_time = time.time()
                 print(
@@ -118,8 +140,8 @@ class SSLModel():
                     val_step += 1
                     start_time = time.time()
                     inputs, gt_input = (
-                        val_batch["image"].to(self.device),
-                        val_batch["gt_image"].to(self.device),
+                        val_batch["image"].cuda(non_blocking=True),
+                        val_batch["gt_image"].cuda(non_blocking=True),
                     )
                     print("Input shape: {}".format(inputs.shape))
                     outputs, outputs_v2 = self.model(inputs)
