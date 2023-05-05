@@ -13,7 +13,7 @@ from monai.transforms import (
     RandCoarseShuffled,
 )
 
-def init_train_transforms():
+def ssl_transforms():
     Compose(
     [
         LoadImaged(keys=["image"]),
