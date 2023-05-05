@@ -1,12 +1,12 @@
 import numpy as np
 import PIL
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict
 import glob
 from sklearn.model_selection import train_test_split
 
 
-def load_tile_sets(tile_path: Path = None) -> Tuple(Dict, Dict):
+def load_tile_sets(tile_path: Path = None) -> tuple(Dict, Dict):
     tile_dirs = glob.glob(tile_path)
     train_set, valid_set = train_test_split(tile_dirs, test_size=0.2, random_state=1337)
     data_dict = {"training": [], "validation": []}
