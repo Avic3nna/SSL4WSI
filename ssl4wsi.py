@@ -35,7 +35,8 @@ from monai.transforms import (
 import argparse
 from pathlib import Path
 import PIL
-from helpers import init_train_transforms
+from helpers.training_transforms import ssl_transforms
+from helpers.config_ssl import SSLModel
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -43,14 +44,24 @@ if __name__ == '__main__':
 
     parser.add_argument('-d', '--data', type=Path, required=True,
                         help='Path to load data from.')
-    parser.add_argument('--wsi-dir', metavar='DIR', type=Path, required=True,
-                        help='Path of where the whole-slide images are.')
-    parser.add_argument('-m', '--model', metavar='DIR', type=Path, required=True,
-                        help='Path of where model for the feature extractor is.')
+    parser.add_argument('-l', '--log_dir', type=Path, required=True,
+                        help='Path of where to log the output.')
+    parser.add_argument('-b', '--batch_size', type=int, default=512,
+                        help='Batch size of the data loader.')
+
+    args = parser.parse_args()
 
 PIL.Image.MAX_IMAGE_PIXELS = None
 
 if __name__ == "__main__":
-    print(args.
-
     set_determinism(seed=1337)
+    # Define DataLoader using MONAI, CacheDataset needs to be used
+    train_ds = Dataset(data=train_data, transform=ssl_transforms)
+    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=4)
+
+    val_ds = Dataset(data=val_data, transform=ssl_transforms)
+    val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=True, num_workers=4)
+
+    model = SSLModel()
+    model.train(train_loader=train_loader, val_loader=val_loader, output_path=args.log_dir)
+    model.plot(output_path=args.log_dir)
