@@ -17,18 +17,17 @@ class SSLModel():
     def __init__(self,
                  max_epochs: int = 500,
                  val_interval: int = 2,
-                 batch_size: int = 4,
+                 batch_size: int = 64,
                  lr: float = 1e-4,
                  recon_loss = torch.nn.L1Loss(),
-                 optimizer = torch.optim.Adam,
-                 local_rank: np.array = [0, 1, 2, 3],
+                 local_rank: np.array = [0], #, 1, 2, 3],
                  **kwargs) -> None:
         super().__init__()
         # Training Config
         # Define Network ViT backbone & Loss & Optimizer
         self.model = ViTAutoEnc(
                 in_channels=3,
-                img_size=(512, 512, 3),
+                img_size=(224, 224, 3),
                 patch_size=(16, 16, 3),
                 pos_embed="conv",
                 hidden_size=768,
@@ -47,7 +46,7 @@ class SSLModel():
         self.lr = lr
         self.recon_loss = recon_loss
         self.contrastive_loss = monai.losses.ContrastiveLoss(temperature=0.05)
-        self.optimizer = partial(optimizer, self.model.parameters(), lr=lr, **kwargs)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, **kwargs)
         
         self.epoch_loss_values = []
         self.step_loss_values = []
@@ -76,7 +75,7 @@ class SSLModel():
             for batch_data in train_loader:
                 step += 1
                 start_time = time.time()
-
+                
                 inputs, inputs_2, gt_input = (
                     batch_data["image"].cuda(non_blocking=True),
                     batch_data["image_2"].cuda(non_blocking=True),
