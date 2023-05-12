@@ -48,14 +48,14 @@ if __name__ == "__main__":
     train_data, val_data = load_tile_sets(tile_path=args.data_dir)
     # Define DataLoader using MONAI, CacheDataset needs to be used
     dist.init_process_group("gloo", world_size=1)
-    train_ds = CacheDataset(data=train_data, transform=ssl_transforms(), cache_rate=1., num_workers=8)
+    train_ds = CacheDataset(data=train_data, transform=ssl_transforms(), cache_rate=1., num_workers=64)
     # sampler option is mutually exclusive with shuffle
     train_sampler = DistributedSampler(train_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True)
-    train_loader = DataLoader(train_ds, sampler=train_sampler, batch_size=args.batch_size, num_workers=8, pin_memory=True)#, collate_fn=collate_fn)
+    train_loader = DataLoader(train_ds, sampler=train_sampler, batch_size=args.batch_size, num_workers=64, pin_memory=True)#, collate_fn=collate_fn)
 
-    val_ds = CacheDataset(data=val_data, transform=ssl_transforms(), cache_rate=1., num_workers=8)
+    val_ds = CacheDataset(data=val_data, transform=ssl_transforms(), cache_rate=1., num_workers=64)
     val_sampler = DistributedSampler(val_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank())
-    val_loader = DataLoader(val_ds, sampler=val_sampler, batch_size=args.batch_size, num_workers=8, pin_memory=True)#, collate_fn=collate_fn)
+    val_loader = DataLoader(val_ds, sampler=val_sampler, batch_size=args.batch_size, num_workers=64, pin_memory=True)#, collate_fn=collate_fn)
     model = SSLModel()
     model.train(train_loader=train_loader, val_loader=val_loader, output_path=args.log_dir)
     model.plot(output_path=args.log_dir)
