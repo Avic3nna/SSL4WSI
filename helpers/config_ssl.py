@@ -27,6 +27,7 @@ class SSLModel():
         # Define Network ViT backbone & Loss & Optimizer
         self.model = ViTAutoEnc(
                 in_channels=3,
+                out_channels=3,
                 img_size=(512, 512),
                 patch_size=(16, 16),
                 pos_embed="conv",
@@ -153,9 +154,9 @@ class SSLModel():
                 self.val_loss_values.append(total_val_loss)
                 print(f"epoch {epoch + 1} Validation avg loss: {total_val_loss:.4f}, " f"time taken: {end_time-start_time}s")
 
-                if total_val_loss < best_val_loss:
+                if total_val_loss < self.best_val_loss:
                     print(f"Saving new model based on validation loss {total_val_loss:.4f}")
-                    best_val_loss = total_val_loss
+                    self.best_val_loss = total_val_loss
                     checkpoint = {"epoch": self.max_epochs, "state_dict": self.model.state_dict(), "optimizer": self.optimizer.state_dict()}
                     torch.save(checkpoint, os.path.join(output_path, "best_model.pt"))
 
