@@ -1,7 +1,7 @@
 import torch
 
 import monai
-from monai.networks.nets import ViTAutoEnc
+from monai.networks.nets import ViT
 
 import time
 from functools import partial
@@ -25,7 +25,7 @@ class SSLModel():
         super().__init__()
         # Training Config
         # Define Network ViT backbone & Loss & Optimizer
-        self.model = ViTAutoEnc(
+        self.model = ViT(
                 in_channels=3,
                 img_size=(224, 224),
                 patch_size=(16, 16),
