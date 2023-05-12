@@ -30,7 +30,7 @@ def ssl_transforms():
         ),
         # CropForegroundd(keys=["image"], source_key="image"),
         # SpatialPadd(keys=["image"], spatial_size=(512, 512)),
-        RandSpatialCropSamplesd(keys=["image"], roi_size=(16, 16), random_size=False),
+        #RandSpatialCropSamplesd(keys=["image"], roi_size=(16, 16), random_size=False),
         CopyItemsd(keys=["image"], times=2, names=["gt_image", "image_2"], allow_missing_keys=False),
         OneOf(
             transforms=[
