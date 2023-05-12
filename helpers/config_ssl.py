@@ -86,8 +86,8 @@ class SSLModel():
                 outputs_v1, hidden_v1 = self.model(inputs)
                 outputs_v2, hidden_v2 = self.model(inputs_2)
 
-                flat_out_v1 = outputs_v1.flatten(start_dim=1, end_dim=4)
-                flat_out_v2 = outputs_v2.flatten(start_dim=1, end_dim=4)
+                flat_out_v1 = outputs_v1.flatten(start_dim=1, end_dim=-1)
+                flat_out_v2 = outputs_v2.flatten(start_dim=1, end_dim=-1)
 
                 r_loss = self.recon_loss(outputs_v1, gt_input)
                 cl_loss = self.contrastive_loss(flat_out_v1, flat_out_v2)
