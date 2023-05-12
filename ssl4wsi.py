@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from helpers.training_transforms import ssl_transforms
 from helpers.config_ssl import SSLModel
 from helpers.load_data import load_tile_sets
-from helpers.utils import collate_fn
+from helpers.utils import collate_fn, reduce_tensor, save_checkpoint, TensorboardLogger
 
 
 if __name__ == '__main__':
@@ -46,16 +46,39 @@ PIL.Image.MAX_IMAGE_PIXELS = None
 if __name__ == "__main__":
     set_determinism(seed=1337)
     train_data, val_data = load_tile_sets(tile_path=args.data_dir)
+
+
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+        rank = int(os.environ["LOCAL_RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+        print(f"RANK and WORLD_SIZE in environ: {rank}/{world_size}")
+    else:
+        rank = -1
+        world_size = -1
+    torch.cuda.set_device(args.local_rank)
+    torch.distributed.init_process_group(backend="nccl", init_method="env://", world_size=world_size, rank=rank)
+    torch.distributed.barrier()
+
+    if dist.get_rank() == 0:
+        if not os.path.exists(args.output):
+            os.makedirs(args.output, exist_ok=True)
+        if not os.path.exists(args.logdir_path):
+            os.makedirs(args.logdir_path, exist_ok=True)
+
+    if dist.get_rank() == 0:
+        log_writer = TensorboardLogger(log_dir=args.logdir_path)
+
+
     # Define DataLoader using MONAI, CacheDataset needs to be used
-    dist.init_process_group("gloo", world_size=1)
-    train_ds = CacheDataset(data=train_data, transform=ssl_transforms(), cache_rate=1., num_workers=64)
+    # dist.init_process_group("gloo", world_size=1)
+    train_ds = CacheDataset(data=train_data, transform=ssl_transforms(), cache_rate=1., num_workers=8)
     # sampler option is mutually exclusive with shuffle
     train_sampler = DistributedSampler(train_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True)
-    train_loader = DataLoader(train_ds, sampler=train_sampler, batch_size=args.batch_size, num_workers=64, pin_memory=True)#, collate_fn=collate_fn)
+    train_loader = DataLoader(train_ds, sampler=train_sampler, batch_size=args.batch_size, num_workers=8, pin_memory=True)#, collate_fn=collate_fn)
 
-    val_ds = CacheDataset(data=val_data, transform=ssl_transforms(), cache_rate=1., num_workers=64)
+    val_ds = CacheDataset(data=val_data, transform=ssl_transforms(), cache_rate=1., num_workers=8)
     val_sampler = DistributedSampler(val_ds, num_replicas=dist.get_world_size(), rank=dist.get_rank())
-    val_loader = DataLoader(val_ds, sampler=val_sampler, batch_size=args.batch_size, num_workers=64, pin_memory=True)#, collate_fn=collate_fn)
+    val_loader = DataLoader(val_ds, sampler=val_sampler, batch_size=args.batch_size, num_workers=8, pin_memory=True)#, collate_fn=collate_fn)
     model = SSLModel()
     model.train(train_loader=train_loader, val_loader=val_loader, output_path=args.log_dir)
     model.plot(output_path=args.log_dir)

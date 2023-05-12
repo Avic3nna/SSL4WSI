@@ -13,6 +13,7 @@ from timm.utils import AverageMeter
 from helpers.utils import reduce_tensor
 
 
+
 class SSLModel():
     def __init__(self,
                  max_epochs: int = 500,
@@ -36,9 +37,8 @@ class SSLModel():
                 spatial_dims=2
         )
 
-        self.model = self.model.cuda()
-        self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[local_rank], 
-                                                          broadcast_buffers=False, find_unused_parameters=True)
+        
+        self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[local_rank])
         model_without_ddp = self.model.module
 
         # Define Hyper-paramters for training loop
@@ -73,6 +73,8 @@ class SSLModel():
             loss_l1_meter = AverageMeter()
             loss_cont_meter = AverageMeter()
             loss_meter = AverageMeter()
+
+            # self.train_loader.sampler.set_epoch(epoch)
 
             for batch_data in train_loader:
                 step += 1
@@ -117,6 +119,7 @@ class SSLModel():
                 loss_meter.update(total_loss_t.item(), inputs.size(0))
 
                 end_time = time.time()
+                lr = self.optimizer.param_groups[0]["lr"]
                 print(
                     f"{step}/{len(train_loader.dataset) // train_loader.batch_size}, "
                     f"train_loss: {total_loss.item():.4f}, "
