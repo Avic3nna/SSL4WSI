@@ -28,9 +28,9 @@ def ssl_transforms():
             b_max=1.0,
             clip=True,
         ),
-        CropForegroundd(keys=["image"], source_key="image"),
-        SpatialPadd(keys=["image"], spatial_size=(512, 512)),
-        RandSpatialCropSamplesd(keys=["image"], roi_size=(512, 512), random_size=False, num_samples=2),
+        # CropForegroundd(keys=["image"], source_key="image"),
+        # SpatialPadd(keys=["image"], spatial_size=(512, 512)),
+        # RandSpatialCropSamplesd(keys=["image"], roi_size=(16, 16), random_size=False, num_samples=2),
         CopyItemsd(keys=["image"], times=2, names=["gt_image", "image_2"], allow_missing_keys=False),
         OneOf(
             transforms=[
